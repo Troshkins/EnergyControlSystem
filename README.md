@@ -36,6 +36,7 @@ EnergyControlSystem/
 ## 🚀 How to Run the Frontend
 
 ```bash 1. Go to frontend directory
+# 1. Change the directory
 cd frontend
 
 # 2. Install dependencies
@@ -48,28 +49,29 @@ The dashboard will be available at: http://localhost:5173
 
 ## 🛠 Tech Stack (Frontend)
 
-React 18 + TypeScript
-Vite (fast build tool)
-Tailwind CSS
-Recharts – interactive charts
-Axios – API calls
-Lucide React – icons
+- React 18 + TypeScript
+- Vite (fast build tool)
+- Tailwind CSS
+- Recharts – interactive charts
+- Axios – API calls
+- Lucide React – icons
 
 ## 👥 Team
-
-e.neialov   RoleStudentFrontend & Visualization
-ma.kalinin  Backend, DB & Kafka
-p.troshkin  Optimization & Intraday Logic
+e.neialov | RoleStudentFrontend & Visualization
+--- | ---
+ma.kalinin | Backend, DB & Kafka
+p.troshkin | Optimization & Intraday Logic
 
 ## 📸 Screenshots
 (Will be added after final integration)
 
-Daily Schedule with stacked bar chart
-Real-time Intraday Corrections
-Test Scenarios Results
-Input Data Panel
+- Daily Schedule with stacked bar chart
+- Real-time Intraday Corrections
+- Test Scenarios Results
+- Input Data Panel
 
 ## 🔗 Links
 
 Repository: https://github.com/Troshkins/EnergyControlSystem
+
 Course: Distributed and Network Programming
