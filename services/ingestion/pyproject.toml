@@ -1,0 +1,15 @@
+[project]
+name = "ecs-ingestion-service"
+version = "0.1.0"
+description = "Energy Control System - Data Ingestion Service"
+requires-python = ">=3.11"
+
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "sqlalchemy",
+    "psycopg[binary]",
+    "pydantic",
+    "kafka-python",
+    "python-dotenv"
+]
