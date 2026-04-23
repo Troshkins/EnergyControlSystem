@@ -1,16 +1,18 @@
-from app.repositories.prices_repo import save_prices
-from app.repositories.forecast_repo import save_forecast
+from app.producers.kafka_producer import kafka_producer
 from app.repositories.assets_repo import save_assets
+from app.repositories.forecast_repo import save_forecast
 from app.repositories.intraday_repo import save_intraday
-
+from app.repositories.prices_repo import save_prices
 from app.services.validation_service import (
-    validate_prices,
-    validate_forecast,
     validate_assets,
+    validate_forecast,
     validate_intraday,
+    validate_prices,
 )
 
-from app.producers.kafka_producer import kafka_producer
+
+def _dump(item):
+    return item.model_dump() if hasattr(item, "model_dump") else item.dict()
 
 
 def ingest_prices(db, data):
@@ -19,7 +21,7 @@ def ingest_prices(db, data):
 
     kafka_producer.send(
         topic="price_signals",
-        message={"prices": [p.dict() for p in data.prices]},
+        message={"prices": [_dump(item) for item in data.prices]},
         key="prices",
     )
 
@@ -32,7 +34,7 @@ def ingest_forecast(db, data):
 
     kafka_producer.send(
         topic="demand_forecasts",
-        message={"forecast": [f.dict() for f in data.forecast]},
+        message={"forecast": [_dump(item) for item in data.forecast]},
         key="forecast",
     )
 
@@ -42,6 +44,7 @@ def ingest_forecast(db, data):
 def ingest_assets(db, data):
     validate_assets(data)
     save_assets(db, data)
+
     return {"status": "assets stored"}
 
 
@@ -51,7 +54,7 @@ def ingest_intraday(db, data):
 
     kafka_producer.send(
         topic="intraday_updates",
-        message=data.dict(),
+        message=_dump(data),
         key="intraday",
     )
 

@@ -1,8 +1,10 @@
 import json
-import time
 import logging
-from kafka import KafkaProducer
-from kafka.admin import KafkaAdminClient, NewTopic
+import time
+from typing import Optional
+
+from kafka import KafkaAdminClient, KafkaProducer
+from kafka.admin import NewTopic
 from kafka.errors import TopicAlreadyExistsError
 
 from app.core.config import settings
@@ -11,85 +13,122 @@ logger = logging.getLogger(__name__)
 
 
 class KafkaEventProducer:
+    TOPICS = ("price_signals", "demand_forecasts", "intraday_updates")
+
     def __init__(self):
         self.bootstrap_servers = settings.KAFKA_BOOTSTRAP_SERVERS
-        self.producer = None
+        self._producer: Optional[KafkaProducer] = None
+        self._admin: Optional[KafkaAdminClient] = None
+        self._topics_ready = False
 
-        self._connect()
-        self._ensure_topics()
+    def _connect(self, retries: int = 10, delay: int = 3):
+        if self._producer is not None and self._admin is not None:
+            return
 
-    def _connect(self, retries=10, delay=5):
-        for attempt in range(retries):
+        last_error = None
+
+        for attempt in range(1, retries + 1):
             try:
-                logger.info(f"Connecting to Kafka ({attempt+1}/{retries})...")
+                logger.info("Connecting to Kafka (%s/%s)...", attempt, retries)
 
-                self.producer = KafkaProducer(
+                self._producer = KafkaProducer(
                     bootstrap_servers=self.bootstrap_servers,
                     value_serializer=lambda v: json.dumps(v, default=str).encode("utf-8"),
-                    key_serializer=lambda v: str(v).encode("utf-8") if v else None,
+                    key_serializer=lambda v: str(v).encode("utf-8") if v is not None else None,
                     retries=5,
                     linger_ms=10,
+                    acks="all",
                 )
 
-                logger.info("Connected to Kafka")
-                return
+                self._admin = KafkaAdminClient(
+                    bootstrap_servers=self.bootstrap_servers,
+                    client_id="ecs-ingestion-admin",
+                )
 
-            except Exception as e:
-                logger.warning(f"Kafka connection failed: {e}")
+                logger.info("Kafka connection established")
+                return
+            except Exception as exc:
+                last_error = exc
+                logger.warning("Kafka connection failed: %s", exc)
                 time.sleep(delay)
 
-        raise RuntimeError("Could not connect to Kafka after retries")
+        raise RuntimeError(f"Could not connect to Kafka after {retries} attempts: {last_error}")
 
     def _ensure_topics(self):
-        try:
-            admin = KafkaAdminClient(bootstrap_servers=self.bootstrap_servers)
+        if self._topics_ready:
+            return
 
-            topics = [
-                NewTopic(name="price_signals", num_partitions=1, replication_factor=1),
-                NewTopic(name="demand_forecasts", num_partitions=1, replication_factor=1),
-                NewTopic(name="intraday_updates", num_partitions=1, replication_factor=1),
-            ]
+        self._connect()
 
-            for topic in topics:
-                try:
-                    admin.create_topics([topic])
-                    logger.info(f"Created topic: {topic.name}")
-                except TopicAlreadyExistsError:
-                    logger.info(f"Topic already exists: {topic.name}")
-                except Exception as e:
-                    logger.warning(f"Topic creation issue: {e}")
+        for topic_name in self.TOPICS:
+            try:
+                self._admin.create_topics(
+                    [
+                        NewTopic(
+                            name=topic_name,
+                            num_partitions=1,
+                            replication_factor=1,
+                        )
+                    ]
+                )
+                logger.info("Created topic: %s", topic_name)
+            except TopicAlreadyExistsError:
+                logger.info("Topic already exists: %s", topic_name)
+            except Exception as exc:
+                logger.warning("Topic setup issue for %s: %s", topic_name, exc)
 
-        except Exception as e:
-            logger.warning(f"Kafka admin unavailable: {e}")
+        self._topics_ready = True
 
     def send(self, topic: str, message: dict, key: str | None = None):
-        if not self.producer:
-            raise RuntimeError("Kafka producer not initialized")
+        self._ensure_topics()
+
+        if self._producer is None:
+            raise RuntimeError("Kafka producer is not initialized")
+
+        future = self._producer.send(topic, value=message, key=key)
 
         try:
-            future = self.producer.send(topic, value=message, key=key)
-            record_metadata = future.get(timeout=10)
+            metadata = future.get(timeout=10)
+            self._producer.flush()
 
             logger.info(
-                f"Sent to {record_metadata.topic} "
-                f"(partition={record_metadata.partition}, offset={record_metadata.offset})"
+                "Sent Kafka message topic=%s partition=%s offset=%s",
+                metadata.topic,
+                metadata.partition,
+                metadata.offset,
             )
 
             return {
-                "topic": record_metadata.topic,
-                "partition": record_metadata.partition,
-                "offset": record_metadata.offset,
+                "topic": metadata.topic,
+                "partition": metadata.partition,
+                "offset": metadata.offset,
             }
+        except Exception as exc:
+            logger.exception("Kafka send failed")
+            raise exc
 
-        except Exception as e:
-            logger.error(f"Kafka send failed: {e}")
-            raise e
+
+
+    def healthcheck(self) -> bool:
+        try:
+            self._connect()
+            self._admin.list_topics()
+            if self._producer is None:
+                return False
+
+            return True
+
+        except Exception:
+            logger.exception("Kafka healthcheck failed")
+            return False
+
 
     def close(self):
-        if self.producer:
-            self.producer.flush()
-            self.producer.close()
-            logger.info("Kafka producer closed")
+        if self._producer is not None:
+            self._producer.flush()
+            self._producer.close()
+        if self._admin is not None:
+            self._admin.close()
 
 
 kafka_producer = KafkaEventProducer()

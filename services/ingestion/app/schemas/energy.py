@@ -1,9 +1,8 @@
-from pydantic import BaseModel
 from datetime import datetime
 from typing import List
 
+from pydantic import BaseModel
 
-# ---------- PRICES (у тебя уже есть) ----------
 
 class PriceItem(BaseModel):
     timestamp: datetime
@@ -14,8 +13,6 @@ class PriceInput(BaseModel):
     prices: List[PriceItem]
 
 
-# ---------- FORECAST ----------
-
 class ForecastItem(BaseModel):
     timestamp: datetime
     demand: float
@@ -25,8 +22,6 @@ class ForecastInput(BaseModel):
     forecast: List[ForecastItem]
 
 
-# ---------- ASSETS ----------
-
 class AssetsInput(BaseModel):
     battery_capacity: float
     max_charge: float
@@ -34,8 +29,6 @@ class AssetsInput(BaseModel):
     gas_max_output: float
     gas_cost: float
 
-
-# ---------- INTRADAY ----------
 
 class IntradayInput(BaseModel):
     timestamp: datetime
