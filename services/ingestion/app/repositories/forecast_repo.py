@@ -11,3 +11,8 @@ def save_forecast(db: Session, forecast):
     rows = [DemandForecast(**_dump(item)) for item in forecast]
     db.add_all(rows)
     db.commit()
+
+
+def get_latest_forecast(db: Session):
+    rows = db.query(DemandForecast).order_by(DemandForecast.timestamp.asc()).all()
+    return [{"timestamp": row.timestamp, "demand": row.demand} for row in rows]

@@ -16,6 +16,10 @@ from app.services.ingestion_service import (
     ingest_intraday,
     ingest_prices,
 )
+from app.repositories.prices_repo import get_latest_prices
+from app.repositories.forecast_repo import get_latest_forecast
+from app.repositories.assets_repo import get_assets
+from app.repositories.intraday_repo import get_intraday_actions
 
 router = APIRouter()
 
@@ -40,6 +44,8 @@ def health_check(db: Session = Depends(get_db)):
         "kafka": "connected" if kafka_ok else "disconnected",
     }
 
+
+# ─── POST endpoints (ingest data) ────────────────────────────────────────────
 
 @router.post("/prices")
 def upload_prices(data: PriceInput, db: Session = Depends(get_db)):
@@ -71,3 +77,37 @@ def upload_intraday(data: IntradayInput, db: Session = Depends(get_db)):
         return ingest_intraday(db, data)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+# ─── GET endpoints (read data for frontend) ──────────────────────────────────
+
+@router.get("/prices")
+def get_prices(db: Session = Depends(get_db)):
+    try:
+        return get_latest_prices(db)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.get("/forecast")
+def get_forecast(db: Session = Depends(get_db)):
+    try:
+        return get_latest_forecast(db)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.get("/assets")
+def get_assets_data(db: Session = Depends(get_db)):
+    try:
+        return get_assets(db)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.get("/intraday")
+def get_intraday(db: Session = Depends(get_db)):
+    try:
+        return get_intraday_actions(db)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
