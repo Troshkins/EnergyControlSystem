@@ -1,0 +1,16 @@
+[project]
+name = "ecs-optimization-service"
+version = "0.1.0"
+description = "Energy Control System - Optimization Service"
+requires-python = ">=3.11"
+
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "sqlalchemy",
+    "psycopg[binary]",
+    "pydantic",
+    "kafka-python",
+    "python-dotenv",
+    "ortools"
+]

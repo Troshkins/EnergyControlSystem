@@ -83,5 +83,61 @@ services:
     volumes:
       - ./services/ingestion/app:/app/app
 
+  optimizer-service:
+    build:
+      context: ./services/optimizer
+      dockerfile: Dockerfile
+    container_name: ecs_optimizer_service
+    restart: unless-stopped
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+    env_file:
+      - .env
+
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+      APP_ENV: ${APP_ENV}
+      LOG_LEVEL: ${LOG_LEVEL}
+
+    ports:
+      - "${OPTIMIZER_PORT}:8000"
+
+    volumes:
+      - ./services/optimizer/app:/app/app
+
+  intraday-service:
+    build:
+      context: ./services/intraday
+      dockerfile: Dockerfile
+    container_name: ecs_intraday_service
+    restart: unless-stopped
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+    env_file:
+      - .env
+
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+      APP_ENV: ${APP_ENV}
+      LOG_LEVEL: ${LOG_LEVEL}
+
+    ports:
+      - "${INTRADAY_PORT}:8000"
+
+    volumes:
+      - ./services/intraday/app:/app/app
+
 volumes:
   postgres_data:
